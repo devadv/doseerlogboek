@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Doseerlogboek">
+<title>Doseerlogboek</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --ink:#1c2b45;
+    --ink-soft:#41506b;
+    --paper:#f3f4f1;
+    --panel:#ffffff;
+    --line:#cdd2d6;
+    --line-soft:#e3e6e4;
+    --accent:#8b2635;
+    --accent-soft:#f4e3e2;
+    --good:#2f6b4f;
+    --good-soft:#e3ede4;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#e9ebee; --ink-soft:#aab2c0; --paper:#14171d; --panel:#1c212b;
+      --line:#333a46; --line-soft:#262c37; --accent:#e08a8a; --accent-soft:#3a2226;
+      --good:#7fd0a3; --good-soft:#1f3229;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#e9ebee; --ink-soft:#aab2c0; --paper:#14171d; --panel:#1c212b;
+    --line:#333a46; --line-soft:#262c37; --accent:#e08a8a; --accent-soft:#3a2226;
+    --good:#7fd0a3; --good-soft:#1f3229;
+  }
+  html,body{height:100%;}
+  html{scroll-padding-top:env(safe-area-inset-top,0px);}
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 64px;}
+  h1{
+    font-family:'Source Serif 4', serif; font-weight:700;
+    font-size:1.5rem; margin:4px 0 2px; letter-spacing:-0.01em;
+  }
+  .sub{color:var(--ink-soft); font-size:0.88rem; margin:0 0 20px;}
+  .panel{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:3px; padding:16px; margin-bottom:14px;
+  }
+  .panel h2{
+    font-family:'Source Serif 4', serif; font-size:1.02rem; font-weight:600;
+    margin:0 0 12px; padding-bottom:8px; border-bottom:1px solid var(--line-soft);
+  }
+  .hero{
+    background:var(--panel); border:1px solid var(--line); border-radius:3px;
+    padding:22px 18px; margin-bottom:14px; position:relative;
+  }
+  .hero .datum{font-size:0.82rem; color:var(--ink-soft); text-transform:lowercase;}
+  .hero .dosis-row{display:flex; align-items:baseline; gap:10px; margin:6px 0 14px;}
+  .hero .aantal{font-family:'Source Serif 4', serif; font-weight:700; font-size:3.4rem; line-height:1;}
+  .hero .eenheid{font-size:0.95rem; color:var(--ink-soft);}
+  .taken-btn{
+    width:100%; padding:13px; border-radius:3px; border:1px solid var(--good);
+    background:transparent; color:var(--good); font-size:0.95rem; font-weight:500;
+    font-family:inherit; cursor:pointer;
+  }
+  .taken-btn.done{background:var(--good-soft); }
+  .taken-btn.geen{border-color:var(--line); color:var(--ink-soft); cursor:default;}
+  .field-row{display:flex; justify-content:space-between; gap:12px; padding:6px 0; font-size:0.88rem; border-bottom:1px solid var(--line-soft);}
+  .field-row:last-child{border-bottom:none;}
+  .field-row .k{color:var(--ink-soft);}
+  .field-row .v{text-align:right; font-weight:500;}
+  .alert{
+    background:var(--accent-soft); border:1px solid var(--accent);
+    color:var(--accent); border-radius:3px; padding:10px 12px; font-size:0.85rem;
+    margin-bottom:14px;
+  }
+  table{width:100%; border-collapse:collapse; font-size:0.86rem;}
+  th{
+    text-align:left; font-weight:500; color:var(--ink-soft); font-size:0.72rem;
+    padding:0 8px 6px; border-bottom:1px solid var(--line);
+  }
+  td{padding:8px; border-bottom:1px solid var(--line-soft); vertical-align:middle;}
+  tr.today td{background:var(--accent-soft);}
+  tr.gemist td{color:var(--accent);}
+  .dow{color:var(--ink-soft); font-size:0.78rem; width:28px;}
+  .dose-cell{font-weight:600; text-align:center;}
+  .check{
+    width:22px; height:22px; border-radius:50%; border:1.5px solid var(--line);
+    background:transparent; cursor:pointer; display:inline-flex; align-items:center;
+    justify-content:center; padding:0;
+  }
+  .check.on{background:var(--good); border-color:var(--good);}
+  .check.on::after{content:'✓'; color:#fff; font-size:12px;}
+  .row-actions{display:flex; gap:8px; margin-top:12px;}
+  button.secondary{
+    flex:1; padding:10px; border-radius:3px; border:1px solid var(--line);
+    background:transparent; color:var(--ink); font-family:inherit; font-size:0.85rem; cursor:pointer;
+  }
+  input[type=file]{display:none;}
+  .drop{
+    border:1.5px dashed var(--line); border-radius:3px; padding:22px 14px;
+    text-align:center; color:var(--ink-soft); font-size:0.86rem; cursor:pointer;
+  }
+  .drop strong{color:var(--ink); font-weight:500;}
+  .status{font-size:0.82rem; margin-top:8px;}
+  .status.ok{color:var(--good);}
+  .status.err{color:var(--accent);}
+  .manual{display:flex; gap:8px; margin-top:10px;}
+  .manual input{
+    flex:1; padding:9px; border:1px solid var(--line); border-radius:3px;
+    background:var(--paper); color:var(--ink); font-family:inherit; font-size:0.85rem;
+  }
+  .manual button{
+    padding:9px 14px; border-radius:3px; border:1px solid var(--ink); background:var(--ink);
+    color:var(--paper); font-family:inherit; font-size:0.85rem; cursor:pointer;
+  }
+  .notif-status{font-size:0.83rem; color:var(--ink-soft); margin-bottom:10px;}
+  .small{font-size:0.78rem; color:var(--ink-soft); line-height:1.5;}
+  .empty{color:var(--ink-soft); font-size:0.88rem; text-align:center; padding:16px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Doseerlogboek</h1>
+  <p class="sub" id="patient-line">Acenocoumarol — nog geen schema geladen</p>
+
+  <div id="alerts"></div>
+
+  <div class="hero" id="hero"></div>
+
+  <div class="panel" id="import-panel">
+    <h2>Doseerschema importeren</h2>
+    <div class="drop" id="drop-zone">
+      <strong>Tik om een PDF te kiezen</strong><br>het doseerschema van de trombosedienst
+    </div>
+    <input type="file" id="file-input" accept="application/pdf">
+    <div class="status" id="import-status"></div>
+  </div>
+
+  <div class="panel" id="controle-panel" style="display:none">
+    <h2>Controle &amp; INR</h2>
+    <div id="controle-body"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Week</h2>
+    <div id="week-table"></div>
+    <div class="manual">
+      <input type="date" id="manual-date">
+      <input type="number" id="manual-dose" min="0" step="0.5" placeholder="tabl.">
+      <button id="manual-add">Toevoegen</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Melding om 18:00</h2>
+    <div class="notif-status" id="notif-status">Nog niet ingesteld.</div>
+    <div class="row-actions">
+      <button class="secondary" id="notif-enable">Meldingen aanzetten</button>
+      <button class="secondary" id="notif-test">Test melding</button>
+    </div>
+    <p class="small" style="margin-top:12px">
+      Deze melding werkt alleen op het moment dat je deze pagina open hebt staan rond 18:00 uur — een website kan op de iPhone geen melding sturen terwijl hij dicht is. Vraag in de chat om ook een dagelijkse agenda-herinnering om 18:00 uur; die werkt wél altijd, ook als de app niet open is.
+    </p>
+  </div>
+</div>
+
+<script>
+const MONTHS = {jan:0,feb:1,mrt:2,apr:3,mei:4,jun:5,jul:6,aug:7,sep:8,okt:9,nov:10,dec:11};
+const DOW = ['zo','ma','di','wo','do','vr','za'];
+
+const store = {
+  get(k, fallback){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+let schedule = store.get('logboek_schedule', {});   // { 'YYYY-MM-DD': doseNumber }
+let taken    = store.get('logboek_taken', {});       // { 'YYYY-MM-DD': true }
+let meta     = store.get('logboek_meta', {});        // header fields
+
+function todayKey(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmtDate(key){
+  const [y,m,d] = key.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  return DOW[dt.getDay()] + ' ' + d + ' ' + Object.keys(MONTHS)[m-1];
+}
+function parseNlDate(str){
+  // dd-mm-yyyy -> Date
+  const m = str.match(/(\d{2})-(\d{2})-(\d{4})/);
+  if(!m) return null;
+  return new Date(+m[3], +m[2]-1, +m[1]);
+}
+
+// ---------- PDF import ----------
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+async function readPdf(file){
+  const statusEl = document.getElementById('import-status');
+  statusEl.className = 'status';
+  statusEl.textContent = 'Bezig met inlezen…';
+  try{
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    let lines = [];
+    for(let p=1; p<=pdf.numPages; p++){
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const rows = {};
+      content.items.forEach(item=>{
+        const y = Math.round(item.transform[5]/3)*3;
+        (rows[y] = rows[y] || []).push({x:item.transform[4], str:item.str});
+      });
+      const ys = Object.keys(rows).map(Number).sort((a,b)=>b-a);
+      ys.forEach(y=>{
+        const line = rows[y].sort((a,b)=>a.x-b.x).map(i=>i.str).join(' ').replace(/\s+/g,' ').trim();
+        if(line) lines.push(line);
+      });
+    }
+    const fullText = lines.join('\n');
+    parseSchema(fullText, lines);
+    save();
+    render();
+    statusEl.className = 'status ok';
+    statusEl.textContent = 'Schema ingelezen — controleer de week hieronder.';
+  }catch(e){
+    console.error(e);
+    statusEl.className = 'status err';
+    statusEl.textContent = 'Kon de PDF niet automatisch lezen. Voeg de dagen hieronder handmatig toe.';
+  }
+}
+
+function parseSchema(fullText, lines){
+  const grab = (re) => { const m = fullText.match(re); return m ? m[1].trim() : null; };
+
+  meta.naam = grab(/Doseerschema van\s+(.+?)\s+Geprint op/i) || meta.naam;
+  meta.patientnummer = grab(/Patiëntnummer\s+(\d+)/i) || meta.patientnummer;
+  meta.geboortedatum = grab(/Geboortedatum patiënt\s+([\d-]+)/i) || meta.geboortedatum;
+  meta.indicatie = grab(/Antistollings indicatie\s+(.+?)(?:\n|$)/i) || meta.indicatie;
+  meta.grenzen = grab(/Therapeutische grenzen\s+([\d,]+\s*-\s*[\d,]+)/i) || meta.grenzen;
+  meta.medicijn = grab(/Antistollingsmedicijn\s+(.+?)(?:\n|$)/i) || meta.medicijn;
+
+  const inrNu = fullText.match(/INR bij doseerschema\s+([\d,]+)\s+gemeten op\s+\w+\s+([\d-]+)\s+om\s+([\d:]+)/i);
+  if(inrNu){ meta.inrNu = inrNu[1]; meta.inrNuDatum = inrNu[2]; meta.inrNuTijd = inrNu[3]; }
+
+  const inrVorig = fullText.match(/Voorlaatste INR\s+([\d,]+)\s+gemeten op\s+\w+\s+([\d-]+)\s+om\s+([\d:]+)/i);
+  if(inrVorig){ meta.inrVorig = inrVorig[1]; meta.inrVorigDatum = inrVorig[2]; meta.inrVorigTijd = inrVorig[3]; }
+
+  const controle = fullText.match(/Volgende controle\s+\w+\s+([\d-]+)\s+om\s+([\d:]+)/i);
+  if(controle){ meta.volgendeControle = controle[1]; meta.volgendeControleTijd = controle[2]; }
+
+  const prik = fullText.match(/Volgende prikdatum\s+\w+\s+([\d-]+)/i);
+  if(prik){ meta.volgendePrikdatum = prik[1]; }
+
+  const periode = fullText.match(/Doseerperiode\s+([\d-]+)\s+t\/m\s+([\d-]+)/i);
+  let refYear = new Date().getFullYear();
+  if(periode){
+    meta.doseerperiodeVan = periode[1];
+    meta.doseerperiodeTm = periode[2];
+    const d = parseNlDate(periode[1]);
+    if(d) refYear = d.getFullYear();
+  }
+
+  // Table rows: find every (day) (month-nl) (dose) triplet in the whole text
+  const re = /(\d{1,2})\s+(jan|feb|mrt|apr|mei|jun|jul|aug|sep|okt|nov|dec)\s+(\d+(?:[.,]\d+)?)/gi;
+  let m;
+  const found = {};
+  while((m = re.exec(fullText)) !== null){
+    const day = parseInt(m[1],10);
+    const monIdx = MONTHS[m[2].toLowerCase()];
+    let dose = parseFloat(m[3].replace(',','.'));
+    let year = refYear;
+    const d = new Date(year, monIdx, day);
+    const key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    found[key] = dose;
+  }
+  Object.assign(schedule, found);
+}
+
+document.getElementById('drop-zone').addEventListener('click', ()=>document.getElementById('file-input').click());
+document.getElementById('file-input').addEventListener('change', (e)=>{
+  if(e.target.files[0]) readPdf(e.target.files[0]);
+});
+
+// ---------- Manual add ----------
+document.getElementById('manual-add').addEventListener('click', ()=>{
+  const dateEl = document.getElementById('manual-date');
+  const doseEl = document.getElementById('manual-dose');
+  if(!dateEl.value || doseEl.value === '') return;
+  schedule[dateEl.value] = parseFloat(doseEl.value);
+  save(); render();
+  doseEl.value = '';
+});
+
+// ---------- Render ----------
+function save(){
+  store.set('logboek_schedule', schedule);
+  store.set('logboek_taken', taken);
+  store.set('logboek_meta', meta);
+}
+
+function render(){
+  // patient line
+  const pl = document.getElementById('patient-line');
+  if(meta.naam){
+    pl.textContent = meta.naam + (meta.medicijn ? ' — ' + meta.medicijn : '');
+  }
+
+  // alerts: controle deadline
+  const alertsEl = document.getElementById('alerts');
+  alertsEl.innerHTML = '';
+  if(meta.volgendeControle){
+    const cd = parseNlDate(meta.volgendeControle);
+    if(cd){
+      const days = Math.ceil((cd - stripTime(new Date())) / 86400000);
+      if(days <= 2){
+        const div = document.createElement('div');
+        div.className = 'alert';
+        div.textContent = days < 0
+          ? 'De controle-/prikdatum (' + meta.volgendeControle + ') is voorbij — nieuw schema nodig.'
+          : days === 0
+            ? 'Vandaag INR-controle om ' + (meta.volgendeControleTijd || '') + '.'
+            : 'Over ' + days + ' dag(en) INR-controle: ' + meta.volgendeControle + ' om ' + (meta.volgendeControleTijd || '') + '.';
+        alertsEl.appendChild(div);
+      }
+    }
+  }
+
+  // hero: today
+  const hero = document.getElementById('hero');
+  const tk = todayKey();
+  const dose = schedule[tk];
+  const isTaken = !!taken[tk];
+  if(dose === undefined){
+    hero.innerHTML = `<div class="datum">${fmtDate(tk)}</div><div class="empty">Geen dosering bekend voor vandaag — importeer of vul het schema aan.</div>`;
+  } else {
+    hero.innerHTML = `
+      <div class="datum">${fmtDate(tk)}</div>
+      <div class="dosis-row"><span class="aantal">${dose}</span><span class="eenheid">tablet(ten) ${meta.medicijn || 'Acenocoumarol 1 mg'}</span></div>
+      <button class="taken-btn ${isTaken ? 'done' : ''}" id="hero-taken">${isTaken ? '✓ Ingenomen' : 'Markeer als ingenomen'}</button>
+    `;
+    document.getElementById('hero-taken').addEventListener('click', ()=>{
+      taken[tk] = !taken[tk];
+      save(); render();
+    });
+  }
+
+  // controle panel
+  const cp = document.getElementById('controle-panel');
+  const cb = document.getElementById('controle-body');
+  if(meta.inrNu || meta.volgendeControle){
+    cp.style.display = '';
+    cb.innerHTML = '';
+    const rows = [
+      ['Laatste INR', meta.inrNu ? meta.inrNu + ' (' + meta.inrNuDatum + ')' : null],
+      ['Voorlaatste INR', meta.inrVorig ? meta.inrVorig + ' (' + meta.inrVorigDatum + ')' : null],
+      ['Therapeutische grenzen', meta.grenzen],
+      ['Volgende controle', meta.volgendeControle ? meta.volgendeControle + ' om ' + (meta.volgendeControleTijd || '') : null],
+      ['Volgende prikdatum', meta.volgendePrikdatum],
+      ['Doseerperiode', meta.doseerperiodeVan ? meta.doseerperiodeVan + ' t/m ' + meta.doseerperiodeTm : null],
+    ];
+    rows.forEach(([k,v])=>{
+      if(!v) return;
+      const div = document.createElement('div');
+      div.className = 'field-row';
+      div.innerHTML = `<span class="k">${k}</span><span class="v">${v}</span>`;
+      cb.appendChild(div);
+    });
+  } else {
+    cp.style.display = 'none';
+  }
+
+  // week table
+  const wt = document.getElementById('week-table');
+  const keys = Object.keys(schedule).sort();
+  if(keys.length === 0){
+    wt.innerHTML = '<div class="empty">Nog geen dagen in het schema.</div>';
+  } else {
+    let html = '<table><thead><tr><th></th><th>datum</th><th>tabl.</th><th></th></tr></thead><tbody>';
+    keys.forEach(k=>{
+      const [y,m,d] = k.split('-').map(Number);
+      const dt = new Date(y,m-1,d);
+      const isToday = k === tk;
+      const isPast = dt < stripTime(new Date());
+      const missed = isPast && !taken[k];
+      html += `<tr class="${isToday ? 'today' : ''} ${missed ? 'gemist' : ''}">
+        <td class="dow">${DOW[dt.getDay()]}</td>
+        <td>${d} ${Object.keys(MONTHS)[m-1]}</td>
+        <td class="dose-cell">${schedule[k]}</td>
+        <td><button class="check ${taken[k] ? 'on' : ''}" data-key="${k}"></button></td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    wt.innerHTML = html;
+    wt.querySelectorAll('.check').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const k = btn.dataset.key;
+        taken[k] = !taken[k];
+        save(); render();
+      });
+    });
+  }
+}
+
+function stripTime(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+// ---------- Notifications (best-effort, only while page is open) ----------
+const notifStatus = document.getElementById('notif-status');
+function refreshNotifStatus(){
+  if(!('Notification' in window)){
+    notifStatus.textContent = 'Meldingen worden niet ondersteund in deze browser.';
+    return;
+  }
+  if(Notification.permission === 'granted'){
+    notifStatus.textContent = 'Meldingen staan aan. De pagina controleert rond 18:00 uur of hij een melding moet sturen — houd hem daarvoor open.';
+  } else if(Notification.permission === 'denied'){
+    notifStatus.textContent = 'Meldingen zijn geblokkeerd voor deze pagina in de instellingen van je browser.';
+  } else {
+    notifStatus.textContent = 'Meldingen staan nog uit.';
+  }
+}
+document.getElementById('notif-enable').addEventListener('click', async ()=>{
+  if(!('Notification' in window)) return;
+  try{ await Notification.requestPermission(); }catch(e){}
+  refreshNotifStatus();
+});
+document.getElementById('notif-test').addEventListener('click', ()=>{
+  if(Notification.permission !== 'granted') return;
+  const tk = todayKey();
+  const dose = schedule[tk];
+  new Notification('Doseerlogboek', {
+    body: dose !== undefined ? `Vandaag: ${dose} tablet(en) ${meta.medicijn || 'Acenocoumarol'}` : 'Geen dosering bekend voor vandaag.'
+  });
+});
+function checkEveningNotification(){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = new Date();
+  const tk = todayKey();
+  const lastNotified = store.get('logboek_last_notified', null);
+  if(now.getHours() >= 18 && lastNotified !== tk){
+    const dose = schedule[tk];
+    new Notification('Doseerlogboek — 18:00', {
+      body: dose !== undefined ? `Vandaag: ${dose} tablet(en) ${meta.medicijn || 'Acenocoumarol'}` : 'Geen dosering bekend voor vandaag.'
+    });
+    store.set('logboek_last_notified', tk);
+  }
+}
+setInterval(checkEveningNotification, 60000);
+
+refreshNotifStatus();
+checkEveningNotification();
+render();
+</script>
+</body>
+</html>
